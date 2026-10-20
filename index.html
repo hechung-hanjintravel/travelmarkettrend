@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시장동향 브리핑 대시보드</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans pb-12">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    // 통합 주차별 데이터 (원본 문구 100% 반영)
+    const WEEKLY_DATA = {
+      availableWeeks: ["26/10/20", "26/10/13", "26/10/07"],
+      weeks: {
+        // ----------------------------------------------------
+        // 1. 26/10/20 (화) 데이터
+        // ----------------------------------------------------
+        "26/10/20": {
+          briefingDate: "26/10/20 (화)",
+          title: "시장동향 브리핑 대시보드 (10/20주)",
+          summaryHighlights: [
+            { title: "유럽/중남미 특전 & 전세기 라인업", desc: "롯데관광 유럽 특선(아이슬란드/이집트), MSC 크루즈(벨리시마 아시아 3개국), 미주 특선(남미 칸 7개국 메인), 에미레이트 비즈니스석 탑승(요르단, 이집트) 전면 광고 집행", tag: "신문광고" },
+            { title: "동남아 얼리버드 프로모션", desc: "노랑풍선 동남아 얼리버드 기획전(선착순 500명 최대 10만원 할인 쿠폰 + 더블 적립 2% 포인트) 및 하나투어 겨울여행 사용법 할인전 진행", tag: "프로모션" },
+            { title: "비즈톡 직격 마케팅 메시지", desc: "참좋은여행 경쟁사 가격 직접 비교 파격 메시지(호주/뉴질랜드 0원 조건, 이탈리아 완전정복 219만원~) 및 롯데관광 국적기+5성급 체인 라인업 푸시", tag: "비즈톡" }
+          ],
+          newspaperAds: [
+            { id: "np-20-1", date: "10/19(월)", media: "중앙일보", agency: "롯데관광", title: "유럽특선 (아이슬란드 메인/이집트 등)", details: "대한항공 리스본 직항 포르투갈 메인(4,190,000원~), 이집트 항공 일주 9일(7,990,000원~), 튀르키예 9일, 이탈리아 8일 등 대표 유럽 상품", badge: "유럽 특선", badgeColor: "bg-blue-100 text-blue-700", imageUrl: "images/1019_1.jpg" },
+            { id: "np-20-2", date: "10/19(월)", media: "조선일보", agency: "롯데관광", title: "MSC 선사 크루즈 특선 (벨리시마 메인)", details: "이스터 섬+중남미+멕시코 디스커버리 크루즈 18일(36,000,000원~), MSC 벨리시마 아시아 3개국, 알래스카, 타히티 크루즈", badge: "글로벌 크루즈", badgeColor: "bg-purple-100 text-purple-700", imageUrl: "images/1019_2.jpg" },
+            { id: "np-20-3", date: "10/19(월)", media: "조선일보", agency: "롯데관광", title: "미주 특선 (남미 칸 7개국 메인 / 캐나다 서부 등)", details: "대한항공 카이로 특별 직항 전세기 이집트 항공 일주 9일 (7,990,000원~), 선착순 40만원 할인, 월드체인 5성급 호텔 연박", badge: "미주/중남미", badgeColor: "bg-indigo-100 text-indigo-700", imageUrl: "images/1019_3.jpg" },
+            { id: "np-20-4", date: "10/20(화)", media: "조선일보", agency: "롯데관광", title: "유럽 특선 (에미레이트항공 비즈니스석 아프리카/유럽)", details: "에미레이트항공 비즈니스석 탑승 요르단, 이집트 및 비즈니스석 탑승 튀니지 등 대표 유럽/아프리카 상품", badge: "비즈니스 특전", badgeColor: "bg-amber-100 text-amber-700", imageUrl: "images/1020_1.jpg" }
+          ],
+          competitorPromos: [
+            { id: "promo-20-1", agency: "노랑풍선", title: "노랑풍선 미리 준비 동남아 얼리버드", period: "예약: 26.10.19~26.11.08 | 출발: 26.12.01~26.03.31", type: "기획전", benefits: ["동남아 상품 선착순 500명 쿠폰 할인 (150만원 이상 10만 / 80만원 이상 5만 / 50만원 이상 3만 / 20만원 이상 2만원 할인)", "포인트 2% 더블 적립 혜택"] },
+            { id: "promo-20-2", agency: "하나투어", title: "하나투어 겨울여행 사용법", period: "동계 시즌 상시 진행", type: "이벤트", benefits: ["패키지여행/추천여행/자유여행 바로 사용 가능 쿠폰", "해외 패키지 최대 10만원 / 투어입장권 최대 10% / 해외항공 최대 2천원 / 해외호텔 최대 3만원 할인"] }
+          ],
+          edmCampaigns: [
+            { id: "edm-20-1", date: "10/19(월)", agency: "노랑풍선", title: "(광고) 쌀쌀해진 날씨에 내가 반팔을 준비하는 이유...더보기", desc: "동남아 얼리버드 기획전 오픈 메시지 안내 E-DM", tag: "동남아 얼리버드" }
+          ],
+          bizTalkItems: [
+            { id: "biz-20-1", agency: "롯데관광", date: "10/14(수)", time: "14:02", format: "캐러셀 피드형", category: "일본/중국/동남아", headline: "국적기 '대한항공' 탑승 & 월드체인 5성 특급호텔", items: ["대한항공 니가타&야마가타 4일 - 전일정 천연 온천호텔(특급 료칸포함) 전객실 오션뷰", "대한항공 장가계 5/6일 - 전일정 월드체인 호텔 숙박 하워드 존슨 네오 호텔 2연박", "대한항공 하문&고랑서 4/5일 - 월드체인 프리미엄 라인 메리어트 하이창 연박 하버뷰 객실 업그레이드", "아시아나항공 동남아 얼리버드 특가 / NO팁&NO옵션! 하롱베이 앰배서더크루즈", "NO팁&NO옵션 2보상제 나트랑&달랏 - 25년 신규오픈 5성급 멜리아 세레니티 1박 포함", "NO팁! 신라모노그램 다낭&호이안 - [롯데관광 단독계약] 3연박 (오전자유 1회, 망고빙수, 미니바 1회)"] },
+            { id: "biz-20-2", agency: "여행이지", date: "10/15(목)", time: "10:11", format: "캐러셀 커머스형", category: "동남아 BEST 6", headline: "겨울 동남아 BEST 6", items: ["[노쇼핑] 마나도 5일 / [호핑투어] 보라카이 4일", "[노팁/야경투어] 방콕 파타야 5일 / [노쇼핑] 코타키나발루 5일", "[노팁/노옵션/노쇼핑] 브루나이 4일"] },
+            { id: "biz-20-3", agency: "롯데관광", date: "10/17(토)", time: "14:02", format: "캐러셀 피드형", category: "크루즈/중국", headline: "비즈니스클래스 타히티 크루즈 11일", items: ["꿈꾸던 지상낙원, 고갱이 사랑한 타히티! 자고 일어나면 또 다른 낙원 보라보라, 모레아", "대한항공 장가계 5/6일 & 대한항공 하문&고랑서 4/5일", "여행 적기! 홍콩 / 고민없이 바로! 베스트 상품 한눈에"] },
+            { id: "biz-20-4", agency: "참좋은여행", date: "10/17(토)", time: "10:04", format: "기본 텍스트형", category: "호주/뉴질랜드", headline: "369만원 하는 여행을 어떻게 어필해야 하나 고민하다가...", items: ["다른 여행사는 얼마지? 검색해봤습니다. 경쟁사 가격 보고 오니 자신감이 뿜뿜 생기네요.", "올겨울 호주 뉴질랜드 여행 생각중이신 분들, 오늘 카톡 꼭 잡으셔야 합니다.", "노팁 노옵션에 유류/환율추가금 0원 이런 조건, 어떤 가격의 겨울 성수기 호주 뉴질랜드 여행은 대한민국 단 한 곳 참좋은여행 뿐입니다."] },
+            { id: "biz-20-5", agency: "여행이지", date: "10/19(월)", time: "20:00", format: "캐러셀 커머스형", category: "방송 특가", headline: "방송중 스페인&포르투갈 9일", items: ["튀르키예 10일 / 이집트 9일 / 이탈리아 9일 / 서유럽 3국 9일"] },
+            { id: "biz-20-6", agency: "참좋은여행", date: "10/19(월)", time: "10:12", format: "기본 텍스트형", category: "이탈리아 특가", headline: "300만원대 초중반으로 팔던 알프스 돌로미티 포함한 이탈리아 완전정복 8박9일 일주", items: ["10/19(월) 오늘 한정 특가 트리니티항공 직항 219만원 / 아시아나항공 직항 259만원", "올해초 269만원 특가로 전석 매진되었던 상품입니다. 잔여 16명 마감합니다."] }
+          ]
+        },
+
+        // ----------------------------------------------------
+        // 2. 26/10/13 (화) 데이터
+        // ----------------------------------------------------
+        "26/10/13": {
+          briefingDate: "26/10/13 (화)",
+          title: "시장동향 브리핑 대시보드 (10/13주)",
+          summaryHighlights: [
+            { title: "포르투갈·서유럽 & 대형 크루즈", desc: "롯데관광 중앙/조선일보 신문 전면(포르투갈, 이집트 직항, 이스터섬 크루즈) 및 현대홈쇼핑 방송 특가(포르투갈 399만~) 집중 배치", tag: "신문/방송" },
+            { title: "동계 일본 온천 & 미주 얼리버드", desc: "여행이지 일본 프리미엄 4대 명품 온천(시코쿠, 교토, 큐슈, 쿠사츠) 및 참좋은여행 2027 미주 얼리버드 설명회 사전접수 마케팅", tag: "시즌 테마" },
+            { title: "타사 지역 집중 할인 공세", desc: "하나투어 오사카 세일위크(입장권 15% 할인 등) 및 모두투어 트리니티 전노선 얼리버드 사전예약 즉시할인(최대 100만원)", tag: "프로모션" }
+          ],
+          newspaperAds: [
+            { id: "np-13-1", date: "10/12(월)", media: "중앙일보", agency: "롯데관광", title: "유럽 특선 (대한항공 포르투갈 메인)", details: "대한항공 리스본 직항 포르투갈 완주 9일(4,190,000원~), 이집트 9일(7,990,000원~), 튀르키예 9일, 이탈리아 8일, 시칠리아+몰타 9/10일, 그리스+튀르키예 11일, 아이슬란드 8일", badge: "유럽 특선", badgeColor: "bg-blue-100 text-blue-700" },
+            { id: "np-13-2", date: "10/12(월)", media: "중앙일보", agency: "롯데관광", title: "이성원 교수 동행 삼국지 역사 장강삼협 리버크루즈 7일", details: "형주고성에서 은시대협곡까지 품격 3,090,000원~ (ALL 포함 + 발코니선실)", badge: "문화·테마 크루즈", badgeColor: "bg-indigo-100 text-indigo-700" },
+            { id: "np-13-3", date: "10/12(월)", media: "조선일보", agency: "롯데관광", title: "이스터 섬+중남미+멕시코 디스커버리 크루즈 18일", details: "세계 7대 불가사리 이스터섬 현지 2박 포함 품격 36,000,000원~, 지중해 4개국 10일, MSC 벨리시마 아시아 3개국 7일, 알래스카 10일, 남미 6개국 4,400만~", badge: "글로벌 크루즈", badgeColor: "bg-purple-100 text-purple-700" },
+            { id: "np-13-4", date: "10/12(월)", media: "조선일보", agency: "롯데관광", title: "대한항공 카이로 특별 직항 전세기 이집트 항공 일주 9일", details: "월드체인 포함 전 일정 5성급 특급호텔, 국내선 2회 탑승, 선착순 40만원 할인 품격 7,990,000원~", badge: "중동 전세기", badgeColor: "bg-amber-100 text-amber-700" }
+          ],
+          competitorPromos: [
+            { id: "promo-13-1", agency: "하나투어", title: "하나투어 세일위크 #오사카", period: "10/12 ~ 10/25", type: "지역 세일위크", benefits: ["투어/입장권 전표 최대 15% 할인 쿠폰", "해외항공권 2천원 할인", "해외호텔 할인 최대 25,000원"] },
+            { id: "promo-13-2", agency: "모두투어", title: "모두투어 트리니티 항공 전노선 특가", period: "출발 기간: 11월~3월 출발 사전 예약 특가", type: "사전예약 특가", benefits: ["즉시 할인 최대 100만원 혜택 제공"] }
+          ],
+          edmCampaigns: [
+            { id: "edm-13-1", date: "10/7(수)", agency: "하나투어", title: "(광고) [연차계획서 : 남은 연차는 여행으로 채울게요!]", desc: "연말 잔여 연차 소진 기획 레터", tag: "뉴스레터" },
+            { id: "edm-13-2", date: "10/12(월)", agency: "하나투어", title: "(광고) 겨울이 오기 전에, 여행부터 미리 예약! [겨울여행 사용법]", desc: "동계 조기예약 독려 E-DM 레터", tag: "기획전 안내" }
+          ],
+          bizTalkItems: [
+            { id: "biz-13-1", agency: "롯데관광", date: "10/7(수)", time: "11:05", format: "캐러셀 피드형", category: "중국/대만", headline: "대한항공 중국·대만 최대 5% 할인", items: ["대한항공 하문(샤먼) 4/5일 - 유럽의 고풍스러움과 낭만적인 중국의 조화", "NO옵션! 철도 3일 - 3대 인기 옵션 $130 상당 포함", "NO팁+NO쇼핑! 상해 4일 - 코트야드 메리어트 3연박", "NO옵션+NO쇼핑 대만 4일 - 편안하고 부담없는 여행"] },
+            { id: "biz-13-2", agency: "참좋은여행", date: "10/8(목)", time: "10:07", format: "캐러셀 커머스형", category: "미주 얼리버드", headline: "당신이 기다려온 완벽한 동경 - 2027 미주 얼리버드", items: ["[예약 필수] 여행설명회 사전접수", "캐나다 로키일주 6일/9일 / [노쇼핑] 하와이 6일/7일", "[라르고] 미서부 완전일주 11일 / [나이아가라 2연박] 미동부 캐나다 10일"] },
+            { id: "biz-13-3", agency: "롯데관광", date: "10/10(토)", time: "11:01", format: "캐러셀 피드형", category: "유럽/일본/휴양", headline: "주말 베스트 셀렉션", items: ["서유럽 3개국 10일 399만원~ - 국적기 아시아나 A350 [파리 IN - 로마 OUT]", "효고&아마노하시다테 4일 129만원~ - 단풍과 절경! '아마노하시다테 & 이네노야야'", "NO옵션+NO쇼핑 대만 4일 / 전 일정 스위트 다낭&호이안 5일 (4단계 객실 업그레이드)", "DP 챔피언십 참관투어 9일"] },
+            { id: "biz-13-4", agency: "롯데관광", date: "10/11(일)", time: "11:02", format: "프리미엄 동영상형", category: "홈쇼핑 연계", headline: "대한항공 포르투갈 9일 399만원~", items: ["10/11(일) 현대홈쇼핑 21시 35분 방송중 특가 399만원부터!", "포르투 5성급 호텔 2연박, 파노라마 레스토랑, 인솔자 동행"] },
+            { id: "biz-13-5", agency: "노랑풍선", date: "10/12(월)", time: "15:05", format: "캐러셀 커머스형", category: "필리핀 특가", headline: "이달의 옐로 PICK! 필리핀 특가", items: ["가성비부터 관광까지! 보라카이 라군파크부터 리조트 석식까지!", "특급리조트에서 즐기는 힐링 호캉스 보홀 / 온 가족이 즐기는 워터파크 세부"] },
+            { id: "biz-13-6", agency: "참좋은여행", date: "10/12(월)", time: "10:12", format: "캐러셀 커머스형", category: "겨울 컬렉션", headline: "2027 겨울 컬렉션", items: ["[판매 1위] 스페인 포르투갈 9일 / [라르고] 스페인 포르투갈 9일", "스페인 포르투갈 모로코 12일 / [1성 호텔] 포르투갈 일주 9일 / [패키지 속 자유] 모로코 일주 9일"] },
+            { id: "biz-13-7", agency: "롯데관광", date: "10/13(화)", time: "11:03", format: "캐러셀 피드형", category: "크루즈 대전", headline: "타히티&특수지역 크루즈 설명회", items: ["이스터섬+중남미&멕시코 크루즈 (신비의 '이스터섬 2박 연박')", "멕시코 크루즈 로스앤젤레스 11일 - 발코니 선실 무료 업그레이드", "[올인클루시브] 남미 6개국 크루즈 - 인천-남미 전구간 비즈니스 탑승", "[비즈니스] 알래스카 크루즈 10일 - 발코니 선실 무료 업그레이드 (1인 약 100만원 상당)"] },
+            { id: "biz-13-8", agency: "여행이지", date: "10/13(화)", time: "14:02", format: "캐러셀 피드형", category: "일본 온천", headline: "겨울의 낭만, 일본 프리미엄 온천", items: ["일본의 숨겨진 보석, 시코쿠 일주 - 독보적 명품 료칸 [시키시마칸 2연박]", "지친 일상을 비우는 교토 여행 - 교토 전통 료칸 포함, 천연 온천호텔 숙박", "겨울 온천 베스트 여행지, 큐슈 - 1300년 역사, 아마가세 온천 세이카쿠 료칸", "쿠사츠에서 만나는 일본 최고 명천 - 전 일정 명천호텔 숙박"] }
+          ]
+        },
+
+        // ----------------------------------------------------
+        // 3. 26/10/07 (수) 데이터
+        // ----------------------------------------------------
+        "26/10/07": {
+          briefingDate: "26/10/07 (수)",
+          title: "시장동향 브리핑 대시보드 (10/07주)",
+          summaryHighlights: [
+            { title: "비즈니스석 탑승 유럽/아프리카", desc: "롯데관광 중앙/조선일보 신문 전면 광고를 통해 에미레이트 비즈니스석 탑승 네덜란드/아이슬란드, 전세기 메인 요르단 등 비즈니스 라인업 전면 배치", tag: "신문광고" },
+            { title: "타사 숙박 & 얼리버드 프로모션", desc: "인터파크 NOL 숙박 데이(선착순 20% 쿠폰, 60일전 얼리버드 8% 할인) 및 하나투어 벼락치기 여행 발견 할인 프로모션 집행", tag: "프로모션" },
+            { title: "대한항공 이집트 직항 전세기 푸시", desc: "롯데관광 비즈톡을 통해 2027년 1/2월 출발 단 6회 대한항공 이집트 특별 직항 전세기(선착순 40만원 할인) 집중 홍보", tag: "비즈톡" }
+          ],
+          newspaperAds: [
+            { id: "np-07-1", date: "10/06(화)", media: "중앙일보", agency: "롯데관광", title: "유럽특선 메인 (에미레이트항공 비즈니스석 네덜란드/아이슬란드)", details: "유럽 지역 메인 집행", badge: "유럽 비즈니스", badgeColor: "bg-blue-100 text-blue-700" },
+            { id: "np-07-2", date: "10/06(화)", media: "조선일보", agency: "롯데관광", title: "유럽특선 전세기 메인 (중동/아프리카 요르단 등)", details: "비즈니스석 탑승 유럽 지역 메인 집행", badge: "중동 전세기", badgeColor: "bg-indigo-100 text-indigo-700" },
+            { id: "np-07-3", date: "10/06(화)", media: "조선일보", agency: "노랑풍선", title: "가을 일본 벳부 에도 메인", details: "단풍, 온천, 베스트 테마 일본 지역 집행", badge: "일본 단풍/온천", badgeColor: "bg-amber-100 text-amber-700" }
+          ],
+          competitorPromos: [
+            { id: "promo-07-1", agency: "인터파크", title: "인터파크 NOL 숙박 데이", period: "이달 할인 이벤트", type: "기획전", benefits: ["쿠폰 혜택: 최소 구매 제한 없이 최대 5만원 20% 할인 (일 20명) / 10% 할인 (1천명)", "국내 숙소 쿠폰 혜택: 60일전 미리예약 8% / 1일전 미리 43% 추가 혜택"] },
+            { id: "promo-07-2", agency: "하나투어", title: "하나투어 벼락치기 여행", period: "상시 이벤트", type: "기획전", benefits: ["벼락특가 / 추천 발견 / 자유여행 할인 혜택 제공"] }
+          ],
+          edmCampaigns: [
+            { id: "edm-07-1", date: "10/02(금)", agency: "롯데관광", title: "[참고] 신상이라는게 숨긴다고 숨겨지는 것도 아니고...", desc: "신규 상품 브랜딩 레터", tag: "기획전" }
+          ],
+          bizTalkItems: [
+            { id: "biz-07-1", agency: "롯데관광", date: "09/30(수)", time: "11:03", format: "프리미엄 동영상형", category: "이집트 직항", headline: "대한항공 이집트 특별 직항 전세기", items: ["★선착순 40만원 할인! 2027년 1월, 2월 (단 6회 출발)", "★전 일정 5성급 특급호텔 주요도시 2연박, 현지 항공이동 2회"] },
+            { id: "biz-07-2", agency: "노랑풍선", date: "09/30(수)", time: "13:55", format: "주간 비즈톡", category: "일본 특가", headline: "99만원대 특가! 북해도 4일", items: ["★디온스타일 10/4(일) 18:30~ 방송", "★눈꽃 명소 비에이 소운 온천 오타루 숙박& 대게 무제한 겨울이벤트시즌포함"] },
+            { id: "biz-07-3", agency: "참좋은여행", date: "10/01(목)", time: "10:58", format: "기본형", category: "호주 비즈니스", headline: "[비즈니스] 호주 시드니 589만원~", items: ["★지금 예약 날짜별 최대 16석 한정! 비즈니스 좌석 확보 최우선", "★홈쇼핑 특전 럭셔리 5성급 샹그릴라호텔 객실 4단계 업그레이드"] },
+            { id: "biz-07-4", agency: "롯데관광", date: "10/04(일)", time: "11:01", format: "피드형", category: "국내 당일/식도락", headline: "국내 명소 당일 및 식도락 여행", items: ["예산 당일 33,000원 '수덕사' / 청양 당일 36,000원 '청산시장'", "공주&부여 당일 37,000원 '공산성' / 논산 당일 41,000원 '밀리터리파크'", "식도락 3일 639,000원~ / 울릉도 3일 389,000원~"] },
+            { id: "biz-07-5", agency: "롯데관광", date: "10/05(월)", time: "11:01", format: "프리미엄 동영상형", category: "싱가포르 LIVE", headline: "오늘 오후 2시, 단 1시간! 싱가포르 5일 LIVE 특가", items: ["세미패키지부터 자유여행까지, 라이브 방송 한정 혜택 만나보세요!"] },
+            { id: "biz-07-6", agency: "롯데관광", date: "10/06(화)", time: "11:05", format: "피드/캐러셀형", category: "중동/유럽/일본", headline: "당장 떠나는 여행 6선 & 프리미엄 일본온천 6선", items: ["[대한항공 직항] 튀르키예 일주 9일 / [후르가다 1박] 이집트 일주 10일", "[산토리니 2박] 그리스 일주 9일 / [노쇼핑] 코카서스 3국 11일 / [대한항공 직항] 북인도 일주 6/9일", "프리미엄 일본온천: 기타유자와 북해도 4일, 야마나시 도쿄 4일, 도카치가와 북해도 4일, 아마쿠사 규슈 4일, 우레시노 규슈 3일"] }
+          ]
+        }
+      }
+    };
+
+    function App() {
+      const [selectedWeek, setSelectedWeek] = useState(WEEKLY_DATA.availableWeeks[0]);
+      const currentWeekData = WEEKLY_DATA.weeks[selectedWeek];
+
+      const [activeTab, setActiveTab] = useState("all");
+      const [selectedAgency, setSelectedAgency] = useState("ALL");
+      const [searchTerm, setSearchTerm] = useState("");
+      
+      // 지면 이미지 팝업 모달
+      const [selectedImage, setSelectedImage] = useState(null);
+
+      useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      }, [selectedWeek, activeTab]);
+
+      const agencies = ["ALL", "롯데관광", "하나투어", "모두투어", "노랑풍선", "참좋은여행", "여행이지", "인터파크"];
+
+      const filteredNews = useMemo(() => {
+        return (currentWeekData.newspaperAds || []).filter(item => {
+          const matchAgency = selectedAgency === "ALL" || item.agency === selectedAgency;
+          const matchSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.details.toLowerCase().includes(searchTerm.toLowerCase());
+          return matchAgency && matchSearch;
+        });
+      }, [currentWeekData, selectedAgency, searchTerm]);
+
+      const filteredBizTalk = useMemo(() => {
+        return (currentWeekData.bizTalkItems || []).filter(item => {
+          const matchAgency = selectedAgency === "ALL" || item.agency === selectedAgency;
+          const matchSearch = item.headline.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.items.some(sub => sub.toLowerCase().includes(searchTerm.toLowerCase()));
+          return matchAgency && matchSearch;
+        });
+      }, [currentWeekData, selectedAgency, searchTerm]);
+
+      const filteredPromos = useMemo(() => {
+        return (currentWeekData.competitorPromos || []).filter(item => {
+          const matchAgency = selectedAgency === "ALL" || item.agency === selectedAgency;
+          const matchSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.benefits.some(b => b.toLowerCase().includes(searchTerm.toLowerCase()));
+          return matchAgency && matchSearch;
+        });
+      }, [currentWeekData, selectedAgency, searchTerm]);
+
+      const filteredEdm = useMemo(() => {
+        return (currentWeekData.edmCampaigns || []).filter(item => {
+          const matchAgency = selectedAgency === "ALL" || item.agency === selectedAgency;
+          const matchSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              item.desc.toLowerCase().includes(searchTerm.toLowerCase());
+          return matchAgency && matchSearch;
+        });
+      }, [currentWeekData, selectedAgency, searchTerm]);
+
+      return (
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
+          {/* Header & 주차 선택 드롭다운 */}
+          <header className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-100 text-blue-700 rounded-full">
+                  시장 동향 브리핑
+                </span>
+                <span className="text-xs text-slate-500 font-medium">
+                  기준일: {currentWeekData.briefingDate}
+                </span>
+              </div>
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                {currentWeekData.title}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <span className="text-xs font-bold text-slate-600 pl-2">📅 주차 선택:</span>
+                <select 
+                  value={selectedWeek} 
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                  className="bg-white text-xs font-bold text-blue-600 px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none shadow-xs cursor-pointer"
+                >
+                  {WEEKLY_DATA.availableWeeks.map(w => (
+                    <option key={w} value={w}>{w} 주차 브리핑</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-slate-900 hover:bg-black text-white rounded-xl transition shadow-sm"
+              >
+                <i data-lucide="printer" className="w-4 h-4"></i>
+                인쇄 / PDF
+              </button>
+            </div>
+          </header>
+
+          {/* Filter Bar */}
+          <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+              <span className="text-xs font-bold text-slate-400 uppercase mr-1">여행사:</span>
+              {agencies.map(agency => (
+                <button
+                  key={agency}
+                  onClick={() => setSelectedAgency(agency)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                    selectedAgency === agency
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {agency === "ALL" ? "전체 보기" : agency}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full lg:w-72">
+              <input
+                type="text"
+                placeholder="키워드 검색 (예: 포르투갈, 온천, 동남아)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-3 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+              />
+            </div>
+          </section>
+
+          {/* Highlights */}
+          <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="flame" className="w-5 h-5 text-red-500"></i>
+                타사 시장 동향 요약 ({selectedWeek})
+              </h2>
+              <span className="text-xs text-slate-400 font-medium">주간 핵심 모니터링 인사이트</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {(currentWeekData.summaryHighlights || []).map((hl, idx) => (
+                <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded mb-2 inline-block">
+                    {hl.tag}
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">{hl.title}</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">{hl.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* KPI Cards */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div onClick={() => setActiveTab('newspaper')} className="p-4 rounded-2xl border bg-white border-slate-200 hover:border-blue-400 cursor-pointer transition">
+              <div className="text-xs font-bold text-blue-600 mb-1">신문광고</div>
+              <div className="text-2xl font-black text-slate-900">{(currentWeekData.newspaperAds || []).length}<span className="text-sm font-medium text-slate-500 ml-1">건</span></div>
+            </div>
+            <div onClick={() => setActiveTab('biztalk')} className="p-4 rounded-2xl border bg-white border-slate-200 hover:border-amber-400 cursor-pointer transition">
+              <div className="text-xs font-bold text-amber-600 mb-1">카카오 비즈톡</div>
+              <div className="text-2xl font-black text-slate-900">{(currentWeekData.bizTalkItems || []).length}<span className="text-sm font-medium text-slate-500 ml-1">건</span></div>
+            </div>
+            <div onClick={() => setActiveTab('promo')} className="p-4 rounded-2xl border bg-white border-slate-200 hover:border-emerald-400 cursor-pointer transition">
+              <div className="text-xs font-bold text-emerald-600 mb-1">타사 주요 프로모션</div>
+              <div className="text-2xl font-black text-slate-900">{(currentWeekData.competitorPromos || []).length}<span className="text-sm font-medium text-slate-500 ml-1">건</span></div>
+            </div>
+            <div onClick={() => setActiveTab('edm')} className="p-4 rounded-2xl border bg-white border-slate-200 hover:border-purple-400 cursor-pointer transition">
+              <div className="text-xs font-bold text-purple-600 mb-1">E-DM</div>
+              <div className="text-2xl font-black text-slate-900">{(currentWeekData.edmCampaigns || []).length}<span className="text-sm font-medium text-slate-500 ml-1">건</span></div>
+            </div>
+          </section>
+
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+            {[
+              { id: "all", label: "전체 영역 종합" },
+              { id: "newspaper", label: `신문광고 (${filteredNews.length})` },
+              { id: "biztalk", label: `카카오 비즈톡 (${filteredBizTalk.length})` },
+              { id: "promo", label: `타사 주요 프로모션 (${filteredPromos.length})` },
+              { id: "edm", label: `E-DM (${filteredEdm.length})` }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 1. Newspaper Section */}
+          {(activeTab === 'all' || activeTab === 'newspaper') && (
+            <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <i data-lucide="newspaper" className="w-5 h-5 text-blue-600"></i>
+                1. 신문광고 동향
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 border-y border-slate-200">
+                      <th className="py-2.5 px-3.5 font-bold">게재일</th>
+                      <th className="py-2.5 px-3.5 font-bold">매체</th>
+                      <th className="py-2.5 px-3.5 font-bold">여행사</th>
+                      <th className="py-2.5 px-3.5 font-bold">광고 타이틀 및 주요 상품 내용</th>
+                      <th className="py-2.5 px-3.5 font-bold text-center">지면 이미지</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">포지셔닝</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredNews.map(ad => (
+                      <tr key={ad.id} className="hover:bg-slate-50 transition">
+                        <td className="py-3 px-3.5 font-semibold text-slate-700 whitespace-nowrap">{ad.date}</td>
+                        <td className="py-3 px-3.5 whitespace-nowrap">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-medium">{ad.media}</span>
+                        </td>
+                        <td className="py-3 px-3.5 whitespace-nowrap font-bold text-red-600">{ad.agency}</td>
+                        <td className="py-3 px-3.5">
+                          <div className="font-bold text-slate-900 text-xs mb-0.5">{ad.title}</div>
+                          <div className="text-slate-500 text-[11px] leading-relaxed">{ad.details}</div>
+                        </td>
+                        {/* 지면 이미지 보기 버튼 */}
+                        <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                          {ad.imageUrl ? (
+                            <button
+                              onClick={() => setSelectedImage({ title: ad.title, media: ad.media, url: ad.imageUrl })}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+                            >
+                              🖼️ 지면 보기
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-[11px]">미첨부</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3.5 text-right whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${ad.badgeColor}`}>{ad.badge}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* 2. BizTalk Section */}
+          {(activeTab === 'all' || activeTab === 'biztalk') && (
+            <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <i data-lucide="message-square" className="w-5 h-5 text-amber-500"></i>
+                2. 주간 카카오 비즈톡 발송 현황
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredBizTalk.map(talk => (
+                  <div key={talk.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 text-[11px] font-bold rounded bg-amber-100 text-amber-800">
+                          {talk.agency}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-500">{talk.date} {talk.time}</span>
+                      </div>
+                      <span className="text-[11px] px-2 py-0.5 bg-slate-200 text-slate-600 rounded">{talk.format}</span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="text-[11px] font-bold text-amber-600 mr-1">[{talk.category}]</span>
+                      <span className="text-xs font-extrabold text-slate-900">{talk.headline}</span>
+                    </div>
+                    <ul className="space-y-1 bg-white p-2.5 rounded-lg border border-slate-100">
+                      {talk.items.map((line, idx) => (
+                        <li key={idx} className="text-xs text-slate-600 flex items-start gap-1.5">
+                          <span className="text-amber-500 font-bold">•</span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 3. Competitor Promotions */}
+          {(activeTab === 'all' || activeTab === 'promo') && (
+            <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <i data-lucide="tag" className="w-5 h-5 text-emerald-500"></i>
+                3. 타사 주요 프로모션
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredPromos.map(promo => (
+                  <div key={promo.id} className="p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-50/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-700">{promo.agency}</span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 bg-white rounded text-emerald-700">{promo.type}</span>
+                    </div>
+                    <h3 className="text-sm font-extrabold text-slate-900 mb-1">{promo.title}</h3>
+                    <div className="text-[11px] text-slate-500 mb-2">기간: {promo.period}</div>
+                    <div className="space-y-1 border-t border-slate-200 pt-2">
+                      {promo.benefits.map((b, idx) => (
+                        <div key={idx} className="text-xs text-slate-700 flex items-start gap-1.5">
+                          <span className="text-emerald-500 font-bold">•</span>
+                          <span>{b}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 4. E-DM Section */}
+          {(activeTab === 'all' || activeTab === 'edm') && (
+            <section className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <i data-lucide="send" className="w-5 h-5 text-purple-600"></i>
+                4. E-DM 캠페인
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredEdm.map(edm => (
+                  <div key={edm.id} className="p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="font-bold text-purple-600">{edm.agency}</span>
+                      <span className="text-slate-400">{edm.date}</span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 mb-1">{edm.title}</div>
+                    <div className="text-[11px] text-slate-500 mb-2">{edm.desc}</div>
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-700 rounded">#{edm.tag}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 지면 이미지 팝업 모달 */}
+          {selectedImage && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl max-w-4xl w-full p-4 max-h-[90vh] flex flex-col shadow-2xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+                  <div className="font-bold text-sm text-slate-800">
+                    [{selectedImage.media}] {selectedImage.title}
+                  </div>
+                  <button 
+                    onClick={() => setSelectedImage(null)}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-100 rounded-xl mt-3">
+                  <img 
+                    src={selectedImage.url} 
+                    alt={selectedImage.title}
+                    className="max-w-full h-auto rounded shadow-lg"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://via.placeholder.com/600x800?text=images+폴더의+파일명을+확인해주세요";
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <footer className="mt-8 pt-4 border-t border-slate-200 text-center text-[11px] text-slate-400">
+            <p>© 2026 Travel Market Trends Intelligence. 경영진 내부 보고용 자료입니다.</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
